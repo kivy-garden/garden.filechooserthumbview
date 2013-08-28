@@ -1,0 +1,4 @@
+FileChooserThumbView
+====================
+
+FileChooserThumbView for Kivy
