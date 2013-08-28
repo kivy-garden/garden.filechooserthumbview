@@ -17,11 +17,12 @@ You can set some properties in order to control its performance:
 * **thumbsize:** The size of the thumbnails. It defaults to 64d
 """
 
-import os, mimetypes, subprocess, traceback
+import os, mimetypes, subprocess #, traceback (enable for debugging)
 from os.path import join, exists, dirname
 from tempfile import mktemp, mkdtemp
 
 from kivy.lang import Builder
+from kivy.metrics import dp
 from kivy.properties import StringProperty, DictProperty, ObjectProperty, BooleanProperty, NumericProperty
 from kivy.uix.filechooser import FileChooserController
 
@@ -61,7 +62,7 @@ Builder.load_string("""
 
     on_touch_down: self.collide_point(*args[1].pos) and ctx.controller().entry_touched(self, args[1])
     on_touch_up: self.collide_point(*args[1].pos) and ctx.controller().entry_released(self, args[1])
-	size: ctx.controller().thumbsize + dp(52), ctx.controller().thumbsize + dp(52)
+    size: ctx.controller().thumbsize + dp(52), ctx.controller().thumbsize + dp(52)
 
     canvas:
         Color:
@@ -78,21 +79,21 @@ Builder.load_string("""
         pos: root.x + dp(24), root.y + dp(40)
     Label:
         text: unicode(ctx.name, errors="replace")
-        text_size: (root.width, self.height)
+        text_size: (ctx.controller().thumbsize, self.height)
         halign: 'center'
         shorten: True
-        size: '116dp', '16dp'
-        pos: root.x, root.y + dp(16)
+        size: ctx.controller().thumbsize, '16dp'
+        pos: root.center_x - self.width / 2, root.y + dp(16)
 
     Label:
         text: unicode(ctx.controller()._gen_label(ctx), errors="replace")
         font_size: '11sp'
         color: .8, .8, .8, 1
-        size: '116dp', '16sp'
-        pos: root.pos
+        size: ctx.controller().thumbsize, '16sp'
+        pos: root.center_x - self.width / 2, root.y
         halign: 'center'
 
-	""")
+    """)
 
 
 class FileChooserThumbView(FileChooserController):
@@ -123,8 +124,8 @@ class FileChooserThumbView(FileChooserController):
     scrollview = ObjectProperty(None)
 
     def __init__(self, **kwargs):
-        super(FileChooserArtView, self).__init__(**kwargs)
-        if not exists(self.thumbdir)
+        super(FileChooserThumbView, self).__init__(**kwargs)
+        if not exists(self.thumbdir):
             os.mkdir(self.thumbdir)
 
     def _get_image(self, ctx):
@@ -132,108 +133,112 @@ class FileChooserThumbView(FileChooserController):
 
         mutagen = False
         try:
-        	from mutagen.id3 import ID3
-        	from mutagen.flac import FLAC
-        	mutagen = True
-    	except ImportError:
-    		mutagen = False
+            from mutagen.id3 import ID3
+            from mutagen.flac import FLAC
+            mutagen = True
+        except ImportError:
+            mutagen = False
 
         if ctx.isdir:
             to_return = 'atlas://data/images/defaulttheme/filechooser_folder'
         else:
-	    	if (len(os.listdir(dirname(ctx.path))) <= self.showthumbs and self.showthumbs >= 0) or self.showthumbs < 0:
-	            try:
-	                try:
-	                    mime = mimetypes.guess_type(ctx.name)[0]
-	                except TypeError:
-	                    mime = ""
-	                if not mime:
-	                    mime = ""
+            if (len(os.listdir(dirname(ctx.path))) <= self.showthumbs and self.showthumbs >= 0) or self.showthumbs < 0:
+                try:
+                    try:
+                        mime = mimetypes.guess_type(ctx.name)[0]
+                    except TypeError:
+                        mime = ""
+                    if not mime:
+                        mime = ""
 
-	                if ctx.path in self._thumbs.keys():
-	                    to_return = self._thumbs[ctx.path]
-	                elif mime == "audio/mpeg" and mutagen:
-	                    try:
-	                        audio = ID3(ctx.path)
-	                        art = audio.getall("APIC")
-	                        pix = None
-	                        if len(art) == 1:
-	                            pix = art[0]
-	                        elif len(art) > 1:
-	                            for pic in art:
-	                                if pic.type == 3:
-	                                    pix = pic
-	                        if not pix:
-	                            # This would raise an exception if no image is present,
-	                            # and the default one would be returned
-	                            pix = art[0]
-	                        ext = mimetypes.guess_extension(pix.mime)
-	                        image = join(self.thumbdir, mktemp()) + ext if ext != ".jpe" else ".jpg"
-	                        with open(image, "w") as img:
-	                            img.write(pix.data)
-	                        to_return = image
-	                        self._thumbs[ctx.path] = image
-	                    except:
-	                        traceback.print_exc()
-	                        to_return = 'atlas://data/images/defaulttheme/filechooser_file'
-	                elif mime == "audio/flac" and mutagen:
-	                    try:
-	                        audio = FLAC(ctx.path)
-	                        art = audio.pictures
-	                        pix = None
-	                        if len(art) == 1:
-	                            pix = art[0]
-	                        elif len(art) > 1:
-	                            for pic in art:
-	                                if pic.type == 3:
-	                                    pix = pic
-	                        if not pix:
-	                            # This would raise an exception if no image is present,
-	                            # and the default one would be returned
-	                            pix = art[0]
-	                        image = join(self.thumbdir, mktemp()) + mimetypes.guess_extension(pix.mime)
-	                        with open(image, "w") as img:
-	                            img.write(pix.data)
-	                        to_return = image
-	                        self._thumbs[ctx.path] = image
-	                    except:
-	                        traceback.print_exc()
-	                        to_return = 'atlas://data/images/defaulttheme/filechooser_file'
-	                elif "video/" in mime:
-	                    data = None
-	                    #print "ffmpeg:", exec_exists("ffmpeg"), "- avconv:", exec_exists("avconv")
-	                    if exec_exists("avconv"):
-	                        data = subprocess.Popen(['avconv', '-i', ctx.path, '-an', '-vcodec', 'png', '-vframes', '1', '-ss', '00:00:01', '-y', '-f', 'rawvideo', '-'], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0]
-	                    elif exec_exists("ffmpeg"):
-	                        data = subprocess.Popen(['ffmpeg', '-i', ctx.path, '-an', '-vcodec', 'png', '-vframes', '1', '-ss', '00:00:01', '-y', '-f', 'rawvideo', '-'], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0]
-	                    if data:
-	                        image = join(self.thumbdir, mktemp()) + ".png"
-	                        with open(image, "w") as img:
-	                            img.write(data)
-	                        to_return = image
-	                        self._thumbs[ctx.path] = image
-	                    else:
-	                        #uri = 'atlas://data/images/mimetypes/{0}'.format(mime.replace("/", "_").replace("-", "_"))
-	                        #if atlas_texture_exists(uri):
-	                        #    to_return =  uri
-	                        #else:
-	                        to_return = 'atlas://data/images/defaulttheme/filechooser_file'
-	                elif "image/" in mime and ("jpeg" in mime or "jpg" in mime or "gif" in mime or "png" in mime) and not ctx.name.endswith(".jpe"):
-	                    to_return = ctx.path
-	                else:
-	                    uri = 'atlas://data/images/mimetypes/{0}'.format(mime.replace("/", "_").replace("-", "_"))
-	                    if atlas_texture_exists(uri):
-	                        to_return = uri
-	                    else:
-	                        to_return = 'atlas://data/images/defaulttheme/filechooser_file'
-	            except:
-	                print "EXCEPTION IN get_image"
-	                traceback.print_exc()
-	                to_return = 'atlas://data/images/defaulttheme/filechooser_file'
+                    if ctx.path in self._thumbs.keys():
+                        to_return = self._thumbs[ctx.path]
+                    elif mime == "audio/mpeg" and mutagen:
+                        try:
+                            audio = ID3(ctx.path)
+                            art = audio.getall("APIC")
+                            pix = None
+                            if len(art) == 1:
+                                pix = art[0]
+                            elif len(art) > 1:
+                                for pic in art:
+                                    if pic.type == 3:
+                                        pix = pic
+                            if not pix:
+                                # This would raise an exception if no image is present,
+                                # and the default one would be returned
+                                pix = art[0]
+                            ext = mimetypes.guess_extension(pix.mime)
+                            image = join(self.thumbdir, mktemp()) + ext if ext != ".jpe" else ".jpg"
+                            with open(image, "w") as img:
+                                img.write(pix.data)
+                            to_return = image
+                            self._thumbs[ctx.path] = image
+                        except IndexError, TypeError:
+                            to_return = 'atlas://data/images/defaulttheme/filechooser_file'
+                        except:
+                            #traceback.print_exc()
+                            to_return = 'atlas://data/images/defaulttheme/filechooser_file'
+                    elif mime == "audio/flac" and mutagen:
+                        try:
+                            audio = FLAC(ctx.path)
+                            art = audio.pictures
+                            pix = None
+                            if len(art) == 1:
+                                pix = art[0]
+                            elif len(art) > 1:
+                                for pic in art:
+                                    if pic.type == 3:
+                                        pix = pic
+                            if not pix:
+                                # This would raise an exception if no image is present,
+                                # and the default one would be returned
+                                pix = art[0]
+                            image = join(self.thumbdir, mktemp()) + mimetypes.guess_extension(pix.mime)
+                            with open(image, "w") as img:
+                                img.write(pix.data)
+                            to_return = image
+                            self._thumbs[ctx.path] = image
+                        except IndexError, TypeError:
+                            to_return = 'atlas://data/images/defaulttheme/filechooser_file'
+                        except:
+                            #traceback.print_exc()
+                            to_return = 'atlas://data/images/defaulttheme/filechooser_file'
+                    elif "video/" in mime:
+                        data = None
+                        #print "ffmpeg:", exec_exists("ffmpeg"), "- avconv:", exec_exists("avconv")
+                        if exec_exists("avconv"):
+                            data = subprocess.Popen(['avconv', '-i', ctx.path, '-an', '-vcodec', 'png', '-vframes', '1', '-ss', '00:00:01', '-y', '-f', 'rawvideo', '-'], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0]
+                        elif exec_exists("ffmpeg"):
+                            data = subprocess.Popen(['ffmpeg', '-i', ctx.path, '-an', '-vcodec', 'png', '-vframes', '1', '-ss', '00:00:01', '-y', '-f', 'rawvideo', '-'], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0]
+                        if data:
+                            image = join(self.thumbdir, mktemp()) + ".png"
+                            with open(image, "w") as img:
+                                img.write(data)
+                            to_return = image
+                            self._thumbs[ctx.path] = image
+                        else:
+                            #uri = 'atlas://data/images/mimetypes/{0}'.format(mime.replace("/", "_").replace("-", "_"))
+                            #if atlas_texture_exists(uri):
+                            #    to_return =  uri
+                            #else:
+                            to_return = 'atlas://data/images/defaulttheme/filechooser_file'
+                    elif "image/" in mime and ("jpeg" in mime or "jpg" in mime or "gif" in mime or "png" in mime) and not ctx.name.endswith(".jpe"):
+                        to_return = ctx.path
+                    else:
+                        #uri = 'atlas://data/images/mimetypes/{0}'.format(mime.replace("/", "_").replace("-", "_"))
+                        #if atlas_texture_exists(uri):
+                        #    to_return = uri
+                        #else:
+                        to_return = 'atlas://data/images/defaulttheme/filechooser_file'
+                except:
+                    #print "EXCEPTION IN get_image"
+                    #traceback.print_exc()
+                    to_return = 'atlas://data/images/defaulttheme/filechooser_file'
             else:
-            	to_return = 'atlas://data/images/defaulttheme/filechooser_file'
+                to_return = 'atlas://data/images/defaulttheme/filechooser_file'
 
-	        return to_return
+        return to_return
 
     def _gen_label(self, ctx):
         size = ctx.get_nice_size()
@@ -258,8 +263,10 @@ def exec_exists(bin):
         return True
     except subprocess.CalledProcessError:
         return False
-    except:
-        print "EXCEPTION IN get_atlas_textures"
-        
-        traceback.print_exc()
+    except:        
+        #traceback.print_exc()
         return False
+
+if __name__ == "__main__":
+    from kivy.base import runTouchApp
+    runTouchApp(FileChooserThumbView(thumbsize=128))
