@@ -19,6 +19,7 @@ You can set some properties in order to control its performance:
 
 import os, mimetypes, subprocess #, traceback (enable for debugging)
 from os.path import join, exists, dirname
+from chardet import detect as chardetect
 from tempfile import mktemp, mkdtemp
 
 from kivy.lang import Builder
@@ -78,7 +79,7 @@ Builder.load_string("""
         source: ctx.controller()._get_image(ctx)
         pos: root.x + dp(24), root.y + dp(40)
     Label:
-        text: unicode(ctx.name, errors="replace")
+        text: ctx.controller()._unicode_noerrs(ctx.name)
         text_size: (ctx.controller().thumbsize, self.height)
         halign: 'center'
         shorten: True
@@ -86,7 +87,7 @@ Builder.load_string("""
         pos: root.center_x - self.width / 2, root.y + dp(16)
 
     Label:
-        text: unicode(ctx.controller()._gen_label(ctx), errors="replace")
+        text: ctx.controller()._unicode_noerrs(ctx.controller()._gen_label(ctx))
         font_size: '11sp'
         color: .8, .8, .8, 1
         size: ctx.controller().thumbsize, '16sp'
@@ -257,6 +258,11 @@ class FileChooserThumbView(FileChooserController):
             label = size + " - " + t
         return label
 
+    def _unicode_noerrs(self, string):
+        if not string:
+            return u""
+        return unicode(string, encoding=chardetect(string)["encoding"])
+
 def exec_exists(bin):
     try:
         p = subprocess.check_output(["which", bin])
@@ -269,4 +275,20 @@ def exec_exists(bin):
 
 if __name__ == "__main__":
     from kivy.base import runTouchApp
-    runTouchApp(FileChooserThumbView(thumbsize=128))
+    from kivy.uix.boxlayout import BoxLayout
+    from kivy.uix.label import Label
+
+    b = BoxLayout(orientation="vertical")
+    f = FileChooserThumbView(thumbsize=128)
+    l = Label(markup=True, size_hint_y=None)
+    f.mylabel = l
+
+    b.add_widget(f)
+    b.add_widget(l)
+
+    def setlabel(instance, value):
+        instance.mylabel.text = "[b]Selected:[/b] {0}".format(value)
+
+    f.bind(selection=setlabel)
+
+    runTouchApp(b)

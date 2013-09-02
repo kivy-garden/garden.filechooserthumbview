@@ -3,6 +3,8 @@ FileChooserThumbView
 
 The FileChooserThumbView widget is similar to FileChooserIconView,
 but if possible it shows a thumbnail instead of a normal icon.
+The module "chardet" is required to use this widget: if you don't have
+it installed, install it. It's installed by default in Ubuntu.
 
 Usage
 -----
