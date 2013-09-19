@@ -261,7 +261,15 @@ class FileChooserThumbView(FileChooserController):
     def _unicode_noerrs(self, string):
         if not string:
             return u""
-        return unicode(string, encoding=chardetect(string)["encoding"])
+        if type(string) == type(unicode()):
+            return string
+        try:
+            return unicode(string, encoding=chardetect(string)["encoding"])
+        except:
+            raise UnicodeWarning("EXCEPTION IN FileChooserThumbView._unicode_noerrs skipped.\nThis means that file list might not contain all the files that are really present in the directory.\nThis was the exception:")
+            traceback.print_exc()
+            return u""
+
 
 def exec_exists(bin):
     try:
