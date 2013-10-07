@@ -33,7 +33,7 @@ import subprocess
 from os.path import join, exists, dirname
 from chardet import detect as chardetect
 from tempfile import mktemp, mkdtemp
-from PIL import Image
+from PIL import Image, ImageOps
 
 from kivy.app import App
 from kivy.lang import Builder
@@ -187,6 +187,8 @@ class FileChooserThumbView(FileChooserController):
     def _get_image(self, ctx):
         try:
             App.get_running_app().bind(on_stop=self.clear_cache)
+        except AttributeError:
+            pass
         except:
             traceback.print_exc()
             
@@ -305,22 +307,54 @@ class FileChooserThumbView(FileChooserController):
         return image
 
     def _generate_image_from_video(self, videoPath):
-        # we try to use an external software to get a frame
-        # as an image, otherwise => default file icon
+        # we try to use an external software (avconv or ffmpeg)
+        # to get a frame as an image, otherwise => default file icon
         data = extract_image_from_video(videoPath)
-        if data:
-            image = self._generate_image_from_data(videoPath, ".png", data)
-            if self.play_overlay != "" and exists(self.play_overlay):
-                #stack_images(CONVERT_BIN, image, self.play_overlay, image)
-                NotImplemented
-            # FIXME
-            if self.filmstrip_left:
-                NotImplemented
 
-            self._thumbs[videoPath] = image
-            return image
-        else:
+        try:
+            if data:
+                thumbPath = self._generate_image_from_data(
+                    videoPath,
+                    ".png",
+                    data)
+
+                if self.play_overlay != "" and exists(self.play_overlay):
+                    thumb = Image.open(thumbPath)
+
+                    # if we want the thumbnail to contains the complete image
+                    # we can use instead the thumbnail function
+                    # as used by the play button below
+                    # here we use that in order to have squarre image that keep
+                    # the ratio and are "full" (i.e we cut a squarre in the
+                    # middle of the image
+                    thumb = ImageOps.fit(
+                        thumb,
+                        compute_size(self.thumbsize, *thumb.size),
+                        Image.ANTIALIAS
+                    )
+                    playButton = Image.open(self.play_overlay)
+
+                    playButtonSize = min(thumb.size)
+                    print(playButtonSize)
+                    playButton.thumbnail(
+                        (playButtonSize, playButtonSize),
+                        Image.ANTIALIAS
+
+                    )
+                    print(thumb.size)
+                    print(playButton.size)
+                    thumb.paste(playButton, (0, 0), playButton)
+                    thumb.save(thumbPath)
+
+                    self._thumbs[videoPath] = thumbPath
+
+                return thumbPath
+            else:
+                return FILE_ICON
+        except:
+            traceback.print_exc()
             return FILE_ICON
+
 
     def _gen_label(self, ctx):
         size = ctx.get_nice_size()
@@ -436,6 +470,11 @@ def exec_exists(bin):
     except:
         return False
 
+def compute_size(maxs, imgw, imgh):
+    if imgw > imgh:
+        return maxs, maxs*imgh/imgw
+    else:
+        return maxs*imgw/imgh, maxs
 
 if __name__ == "__main__":
     from kivy.base import runTouchApp
@@ -443,7 +482,7 @@ if __name__ == "__main__":
     from kivy.uix.label import Label
 
     box = BoxLayout(orientation="vertical")
-    fileChooser = FileChooserThumbView(thumbsize=128)
+    fileChooser = FileChooserThumbView(thumbsize=128, play_overlay="/home/davideddu/player-play-overlay.png")
     label = Label(markup=True, size_hint_y=None)
     fileChooser.mylabel = label
 
