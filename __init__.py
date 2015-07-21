@@ -92,7 +92,7 @@ Builder.load_string("""
             size: root.size
             source: 'atlas://data/images/defaulttheme/filechooser_selected'
 
-    Image:
+    AsyncImage:
         size: ctx.controller().thumbsize, ctx.controller().thumbsize
         source: ctx.controller()._get_image(ctx)
         pos: root.x + dp(24), root.y + dp(40)
@@ -482,7 +482,7 @@ if __name__ == "__main__":
     from kivy.uix.label import Label
 
     box = BoxLayout(orientation="vertical")
-    fileChooser = FileChooserThumbView(thumbsize=128, play_overlay="/home/davideddu/player-play-overlay.png")
+    fileChooser = FileChooserThumbView(thumbsize=128)
     label = Label(markup=True, size_hint_y=None)
     fileChooser.mylabel = label
 
