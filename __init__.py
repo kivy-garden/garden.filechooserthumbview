@@ -30,6 +30,7 @@ import mimetypes
 import traceback
 import shutil
 import subprocess
+from threading import Thread
 from os.path import join, exists, dirname
 from chardet import detect as chardetect
 from tempfile import mktemp, mkdtemp
@@ -38,6 +39,7 @@ from PIL import Image, ImageOps
 from kivy.app import App
 from kivy.lang import Builder
 from kivy.metrics import dp
+from kivy.utils import QueryDict
 from kivy.properties import StringProperty
 from kivy.properties import DictProperty
 from kivy.properties import ObjectProperty
@@ -74,6 +76,7 @@ Builder.load_string("""
                 padding: '10dp'
 
 [FileThumbEntry@Widget]:
+    image: image
     locked: False
     path: ctx.path
     selected: self.path in ctx.controller().selection
@@ -93,8 +96,8 @@ Builder.load_string("""
             source: 'atlas://data/images/defaulttheme/filechooser_selected'
 
     AsyncImage:
+        id: image
         size: ctx.controller().thumbsize, ctx.controller().thumbsize
-        source: ctx.controller()._get_image(ctx)
         pos: root.x + dp(24), root.y + dp(40)
     Label:
         text: ctx.name
@@ -164,8 +167,10 @@ class FileChooserThumbView(FileChooserController):
     _thumbs = DictProperty({})
     scrollview = ObjectProperty(None)
 
+
     def __init__(self, **kwargs):
         super(FileChooserThumbView, self).__init__(**kwargs)
+        self.thumbnail_generator = ThreadedThumbnailGenerator()
         if not exists(self.thumbdir):
             os.mkdir(self.thumbdir)
 
@@ -183,6 +188,18 @@ class FileChooserThumbView(FileChooserController):
             os.listdir(dirname(path))
         )
         return nbrFileInDir > self.showthumbs
+
+    def _create_entry_widget(self, ctx):
+        # instantiate the widget
+        widget = super(FileChooserThumbView, self)._create_entry_widget(ctx)
+
+        kctx = QueryDict(ctx)
+        # default icon
+        widget.image.source = FOLDER_ICON if kctx.isdir else FILE_ICON
+        # schedule generation for later execution
+        self.thumbnail_generator.append(widget.image, kctx, self._get_image)
+        self.thumbnail_generator.run()
+        return widget
 
     def _get_image(self, ctx):
         try:
@@ -298,8 +315,7 @@ class FileChooserThumbView(FileChooserController):
 
     def _generate_image_from_data(self, path, extension, data):
         # data contains the raw bytes
-        # we save it inside a file, and return this temporay
-        # file's parth
+        # we save it inside a file, and return this file's temporary path
 
         image = self._gen_temp_file_name(extension)
         with open(image, "w") as img:
@@ -377,6 +393,30 @@ class FileChooserThumbView(FileChooserController):
         if not string:
             return u""
         return unicode(string, encoding=chardetect(string)["encoding"])
+
+
+class ThreadedThumbnailGenerator(object):
+    """
+    Class that runs thumbnail generators in a another thread and
+    asynchronously updates image widgets
+    """
+    def __init__(self):
+        self.thumbnail_queue = []
+        self.thread = None
+
+    def append(self, widget, ctx, func):
+        self.thumbnail_queue.append([widget, ctx, func])
+
+    def run(self):
+        if self.thread is None or not self.thread.isAlive():
+            self.thread = Thread(target=self._loop)
+            self.thread.start()
+
+    def _loop(self):
+        while len(self.thumbnail_queue) != 0:
+            # call user function that generates the thumbnail
+            image, ctx, func = self.thumbnail_queue.pop(0)
+            image.source = func(ctx)
 
 
 # test if the file is a supported picture
