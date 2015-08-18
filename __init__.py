@@ -47,6 +47,8 @@ from kivy.properties import BooleanProperty
 from kivy.properties import NumericProperty
 from kivy.uix.filechooser import FileChooserController
 
+# directory with this package
+_path = os.path.dirname(os.path.realpath(__file__))
 
 Builder.load_string("""
 <FileChooserThumbView>:
@@ -325,7 +327,7 @@ class FileChooserThumbView(FileChooserController):
     def _generate_image_from_video(self, videoPath):
         # we try to use an external software (avconv or ffmpeg)
         # to get a frame as an image, otherwise => default file icon
-        data = extract_image_from_video(videoPath)
+        data = extract_image_from_video(videoPath, self.thumbsize)
 
         try:
             if data:
@@ -460,24 +462,28 @@ def get_mime(fileName):
     return ""
 
 
-def extract_image_from_video(path):
+def extract_image_from_video(path, size):
     data = None
     if exec_exists(AVCONV_BIN):
-        data = get_png_from_video(AVCONV_BIN, path)
+        data = get_png_from_video(AVCONV_BIN, path, int(size))
     elif exec_exists(FFMPEG_BIN):
-        data = get_png_from_video(FFMPEG_BIN, path)
+        data = get_png_from_video(FFMPEG_BIN, path, int(size))
     return data
 
 
 # generic function to call a software to extract a PNG
 # from an video file, it return the raw bytes, not an
 # image file
-def get_png_from_video(software, videoPath):
+def get_png_from_video(software, video_path, size):
     return subprocess.Popen(
         [
             software,
             '-i',
-            videoPath,
+            video_path,
+            '-i',
+            os.path.join(_path, 'play_overlay.png'),
+            '-filter_complex',
+            '[0]scale=-1:' + str(size) + '[video],[1]scale=-1:' + str(size) + '[over],[video][over]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2',
             '-an',
             '-vcodec',
             'png',
