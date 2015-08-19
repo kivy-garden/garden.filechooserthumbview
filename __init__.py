@@ -34,7 +34,6 @@ from threading import Thread
 from os.path import join, exists, dirname
 from chardet import detect as chardetect
 from tempfile import mktemp, mkdtemp
-from PIL import Image, ImageOps
 
 from kivy.app import App
 from kivy.lang import Builder
@@ -155,7 +154,7 @@ class FileChooserThumbView(FileChooserController):
     """The size of the thumbnails. It defaults to 64dp.
     """
 
-    play_overlay = StringProperty("")
+    play_overlay = StringProperty(os.path.join(_path, 'play_overlay.png'))
     """Path to a PIL supported image file (e.g. png) that will be put over
     videos thumbnail (e.g. a "play" button). If it's an empty string nothing
     will happen.
@@ -327,46 +326,14 @@ class FileChooserThumbView(FileChooserController):
     def _generate_image_from_video(self, videoPath):
         # we try to use an external software (avconv or ffmpeg)
         # to get a frame as an image, otherwise => default file icon
-        data = extract_image_from_video(videoPath, self.thumbsize)
+        data = extract_image_from_video(videoPath, self.thumbsize, self.play_overlay)
 
         try:
             if data:
-                thumbPath = self._generate_image_from_data(
+                return self._generate_image_from_data(
                     videoPath,
                     ".png",
                     data)
-
-                if self.play_overlay != "" and exists(self.play_overlay):
-                    thumb = Image.open(thumbPath)
-
-                    # if we want the thumbnail to contains the complete image
-                    # we can use instead the thumbnail function
-                    # as used by the play button below
-                    # here we use that in order to have squarre image that keep
-                    # the ratio and are "full" (i.e we cut a squarre in the
-                    # middle of the image
-                    thumb = ImageOps.fit(
-                        thumb,
-                        compute_size(self.thumbsize, *thumb.size),
-                        Image.ANTIALIAS
-                    )
-                    playButton = Image.open(self.play_overlay)
-
-                    playButtonSize = min(thumb.size)
-                    print(playButtonSize)
-                    playButton.thumbnail(
-                        (playButtonSize, playButtonSize),
-                        Image.ANTIALIAS
-
-                    )
-                    print(thumb.size)
-                    print(playButton.size)
-                    thumb.paste(playButton, (0, 0), playButton)
-                    thumb.save(thumbPath)
-
-                    self._thumbs[videoPath] = thumbPath
-
-                return thumbPath
             else:
                 return FILE_ICON
         except:
@@ -462,28 +429,29 @@ def get_mime(fileName):
     return ""
 
 
-def extract_image_from_video(path, size):
+def extract_image_from_video(path, size, play_overlay):
     data = None
     if exec_exists(AVCONV_BIN):
-        data = get_png_from_video(AVCONV_BIN, path, int(size))
+        data = get_png_from_video(AVCONV_BIN, path, int(size), play_overlay)
     elif exec_exists(FFMPEG_BIN):
-        data = get_png_from_video(FFMPEG_BIN, path, int(size))
+        data = get_png_from_video(FFMPEG_BIN, path, int(size), play_overlay)
     return data
 
 
 # generic function to call a software to extract a PNG
 # from an video file, it return the raw bytes, not an
 # image file
-def get_png_from_video(software, video_path, size):
+def get_png_from_video(software, video_path, size, play_overlay):
     return subprocess.Popen(
         [
             software,
             '-i',
             video_path,
             '-i',
-            os.path.join(_path, 'play_overlay.png'),
+            play_overlay,
             '-filter_complex',
-            '[0]scale=-1:' + str(size) + '[video],[1]scale=-1:' + str(size) + '[over],[video][over]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2',
+            '[0]scale=-1:' + str(size) + '[video],[1]scale=-1:' + str(size) + '[over],' +
+                '[video][over]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2',
             '-an',
             '-vcodec',
             'png',
