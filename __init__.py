@@ -32,7 +32,6 @@ import shutil
 import subprocess
 from threading import Thread
 from os.path import join, exists, dirname
-from chardet import detect as chardetect
 from tempfile import mktemp, mkdtemp
 
 from kivy.app import App
@@ -357,11 +356,6 @@ class FileChooserThumbView(FileChooserController):
         else:
             label = size + " - " + temp
         return label
-
-    def _unicode_noerrs(self, string):
-        if not string:
-            return u""
-        return unicode(string, encoding=chardetect(string)["encoding"])
 
 
 class ThreadedThumbnailGenerator(object):
