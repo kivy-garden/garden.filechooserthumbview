@@ -1,0 +1,8 @@
+{
+  '.py': 'python-file',
+  '.kv': 'kv-file',
+  '.pdf': 'pdf-file',
+  '.doc': 'doc-file',
+  '.docx': 'docx-file',
+  '.zip': 'zip-file'
+}
