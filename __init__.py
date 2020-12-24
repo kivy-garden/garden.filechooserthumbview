@@ -269,7 +269,7 @@ class FileChooserThumbView(FileChooserController):
                 art,
                 flacPath
             )
-        except IndexError, TypeError:
+        except (IndexError, TypeError):
             return FILE_ICON
         except:
             return FILE_ICON
@@ -290,7 +290,7 @@ class FileChooserThumbView(FileChooserController):
                 art,
                 mp3Path
             )
-        except IndexError, TypeError:
+        except (IndexError, TypeError):
             return FILE_ICON
         except:
             return FILE_ICON
