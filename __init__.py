@@ -26,7 +26,7 @@ tempfile to generate it randomly.
 
 import os
 import mimetypes
-#(enable for debugging)
+# (enable for debugging)
 import traceback
 import shutil
 import subprocess
@@ -46,6 +46,7 @@ from kivy.properties import NumericProperty
 from kivy.uix.filechooser import FileChooserController
 
 # directory with this package
+
 _path = os.path.dirname(os.path.realpath(__file__))
 
 Builder.load_string("""
@@ -106,15 +107,16 @@ Builder.load_string("""
         shorten: True
         size: ctx.controller().thumbsize, '16dp'
         pos: root.center_x - self.width / 2, root.y + dp(16)
+        
 
     Label:
-
         text: ctx.controller()._gen_label(ctx)
         font_size: '11sp'
         color: .8, .8, .8, 1
         size: ctx.controller().thumbsize, '16sp'
         pos: root.center_x - self.width / 2, root.y
         halign: 'center'
+        
 
     """)
 
@@ -128,6 +130,7 @@ MP3_MIME = "audio/mpeg"
 AVCONV_BIN = 'avconv'
 FFMPEG_BIN = 'ffmpeg'
 CONVERT_BIN = 'convert'
+
 
 class FileChooserThumbView(FileChooserController):
     '''Implementation of :class:`FileChooserController` using an icon view
@@ -181,7 +184,7 @@ class FileChooserThumbView(FileChooserController):
             traceback.print_exc()
 
     def _dir_has_too_much_files(self, path):
-        if (self.showthumbs < 0):
+        if self.showthumbs < 0:
             return False
 
         nbrFileInDir = len(
@@ -208,7 +211,7 @@ class FileChooserThumbView(FileChooserController):
             pass
         except:
             traceback.print_exc()
-            
+
         if ctx.isdir:
             return FOLDER_ICON
 
@@ -269,7 +272,7 @@ class FileChooserThumbView(FileChooserController):
                 art,
                 flacPath
             )
-        except (IndexError, TypeError):
+        except(IndexError, TypeError):
             return FILE_ICON
         except:
             return FILE_ICON
@@ -290,7 +293,7 @@ class FileChooserThumbView(FileChooserController):
                 art,
                 mp3Path
             )
-        except (IndexError, TypeError):
+        except(IndexError, TypeError):
             return FILE_ICON
         except:
             return FILE_ICON
@@ -318,7 +321,7 @@ class FileChooserThumbView(FileChooserController):
         # we save it inside a file, and return this file's temporary path
 
         image = self._gen_temp_file_name(extension)
-        with open(image, "w") as img:
+        with open(image, "wb") as img:
             img.write(data)
         return image
 
@@ -338,7 +341,6 @@ class FileChooserThumbView(FileChooserController):
         except:
             traceback.print_exc()
             return FILE_ICON
-
 
     def _gen_label(self, ctx):
         size = ctx.get_nice_size()
@@ -363,6 +365,7 @@ class ThreadedThumbnailGenerator(object):
     Class that runs thumbnail generators in a another thread and
     asynchronously updates image widgets
     """
+
     def __init__(self):
         self.thumbnail_queue = []
         self.thread = None
@@ -393,7 +396,7 @@ def is_picture(mime, name):
             "jpg" in mime or
             "gif" in mime or
             "png" in mime
-        ) and not name.endswith(".jpe")
+    ) and not name.endswith(".jpe")
 
 
 def pix_from_art(art):
@@ -420,8 +423,6 @@ def get_mime(fileName):
     except TypeError:
         return ""
 
-    return ""
-
 
 def extract_image_from_video(path, size, play_overlay):
     data = None
@@ -445,7 +446,7 @@ def get_png_from_video(software, video_path, size, play_overlay):
             play_overlay,
             '-filter_complex',
             '[0]scale=-1:' + str(size) + '[video],[1]scale=-1:' + str(size) + '[over],' +
-                '[video][over]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2',
+            '[video][over]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2',
             '-an',
             '-vcodec',
             'png',
@@ -462,10 +463,12 @@ def get_png_from_video(software, video_path, size, play_overlay):
         stderr=subprocess.PIPE
     ).communicate()[0]
 
+
 def stack_images(software, bg, fg, out):
     # You need ImageMagick to stack one image onto another
     p = subprocess.Popen([software, bg, "-gravity", "Center", fg, "-compose", "Over", "-composite", out])
     p.wait()
+
 
 def exec_exists(bin):
     try:
@@ -478,27 +481,30 @@ def exec_exists(bin):
     except:
         return False
 
+
 def compute_size(maxs, imgw, imgh):
     if imgw > imgh:
-        return maxs, maxs*imgh/imgw
+        return maxs, maxs * imgh / imgw
     else:
-        return maxs*imgw/imgh, maxs
+        return maxs * imgw / imgh, maxs
+
 
 if __name__ == "__main__":
     from kivy.base import runTouchApp
     from kivy.uix.boxlayout import BoxLayout
     from kivy.uix.label import Label
-
     box = BoxLayout(orientation="vertical")
     fileChooser = FileChooserThumbView(thumbsize=128)
-    label = Label(markup=True, size_hint_y=None)
+    label = Label(markup=True, size_hint=(1, 0.05))
     fileChooser.mylabel = label
 
     box.add_widget(fileChooser)
     box.add_widget(label)
 
+
     def setlabel(instance, value):
         instance.mylabel.text = "[b]Selected:[/b] {0}".format(value)
+
 
     fileChooser.bind(selection=setlabel)
 
