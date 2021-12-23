@@ -46,6 +46,7 @@ from kivy.properties import NumericProperty
 from kivy.uix.filechooser import FileChooserController
 
 # directory with this package
+
 _path = os.path.dirname(os.path.realpath(__file__))
 
 Builder.load_string("""
@@ -108,7 +109,7 @@ Builder.load_string("""
         pos: root.center_x - self.width / 2, root.y + dp(16)
 
     Label:
-
+    
         text: ctx.controller()._gen_label(ctx)
         font_size: '11sp'
         color: .8, .8, .8, 1
@@ -208,7 +209,7 @@ class FileChooserThumbView(FileChooserController):
             pass
         except:
             traceback.print_exc()
-            
+
         if ctx.isdir:
             return FOLDER_ICON
 
@@ -311,14 +312,15 @@ class FileChooserThumbView(FileChooserController):
         return image
 
     def _gen_temp_file_name(self, extension):
-        return join(self.thumbdir, mktemp()) + extension
+        _, temporary_file_name = os.path.split(mktemp())
+        return join(self.thumbdir, temporary_file_name) + extension
 
     def _generate_image_from_data(self, path, extension, data):
         # data contains the raw bytes
         # we save it inside a file, and return this file's temporary path
 
         image = self._gen_temp_file_name(extension)
-        with open(image, "w") as img:
+        with open(image, "wb") as img:
             img.write(data)
         return image
 
@@ -339,7 +341,7 @@ class FileChooserThumbView(FileChooserController):
             traceback.print_exc()
             return FILE_ICON
 
-
+        
     def _gen_label(self, ctx):
         size = ctx.get_nice_size()
         temp = ""
@@ -419,7 +421,7 @@ def get_mime(fileName):
         return mime
     except TypeError:
         return ""
-
+    
     return ""
 
 
@@ -478,20 +480,22 @@ def exec_exists(bin):
     except:
         return False
 
+
 def compute_size(maxs, imgw, imgh):
     if imgw > imgh:
         return maxs, maxs*imgh/imgw
     else:
-        return maxs*imgw/imgh, maxs
+        return maxs *imgw/imgh, maxs
+
 
 if __name__ == "__main__":
     from kivy.base import runTouchApp
     from kivy.uix.boxlayout import BoxLayout
     from kivy.uix.label import Label
-
+    
     box = BoxLayout(orientation="vertical")
     fileChooser = FileChooserThumbView(thumbsize=128)
-    label = Label(markup=True, size_hint_y=None)
+    label = Label(markup=True, size_hint=(1, 0.05))
     fileChooser.mylabel = label
 
     box.add_widget(fileChooser)
