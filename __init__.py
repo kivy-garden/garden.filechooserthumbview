@@ -32,7 +32,7 @@ import shutil
 import subprocess
 from threading import Thread
 from os.path import join, exists, dirname
-from tempfile import mktemp, mkdtemp
+from tempfile import mktemp, mkdtemp, mkstemp
 
 from kivy.app import App
 from kivy.lang import Builder
@@ -312,7 +312,7 @@ class FileChooserThumbView(FileChooserController):
         return image
 
     def _gen_temp_file_name(self, extension):
-        _, temporary_file_name = os.path.split(mktemp())
+        _, temporary_file_name = os.path.split(mkstemp()[1])
         return join(self.thumbdir, temporary_file_name) + extension
 
     def _generate_image_from_data(self, path, extension, data):
