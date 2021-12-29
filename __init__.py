@@ -312,8 +312,8 @@ class FileChooserThumbView(FileChooserController):
         return image
 
     def _gen_temp_file_name(self, extension):
-        _, temporary_file_name = os.path.split(mkstemp()[1])
-        return join(self.thumbdir, temporary_file_name) + extension
+        _, temporary_file_name = os.path.split(mkstemp(dir=self.thumbdir, suffix=extension)[1])
+        return join(self.thumbdir, temporary_file_name)
 
     def _generate_image_from_data(self, path, extension, data):
         # data contains the raw bytes
